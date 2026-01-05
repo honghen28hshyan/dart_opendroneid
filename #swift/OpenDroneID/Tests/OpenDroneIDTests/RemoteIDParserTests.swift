@@ -5,9 +5,11 @@ final class RemoteIDParserTests: XCTestCase {
     func testParseSingleFrame() throws {
         // header: [messageType:4][protocolVersion:4]
         // messageType=basicID(0), protocolVersion=1 => 0x01
-        guard let data = Data(hex: "80000000FFFFFFFFFFFFE47A2C153401E47A2C15340100008098833B00000000A000200400185249442D313538314638374C5732353432303032334E564EDD53FA0BBC0DCEF119030112313538314638374C5732353432303032334E564E0000001116B5000000000000000000005F070000D0070000FFFF000041080000000000000000010000000000000100000000000000007856AD") else {
-            return XCTFail("Failed to create Data from hex")
-        }
+        let header: UInt8 = (0x0 << 4) | 0x1
+        var bytes = [UInt8](repeating: 0, count: RemoteIDFrame.byteCount)
+        bytes[0] = header
+        bytes[1] = 0xAB // basicID first payload byte
+        let data = Data(bytes)
 
         let frames = try RemoteIDParser.parseFrames(from: data)
         XCTAssertEqual(frames.count, 1)
@@ -43,6 +45,19 @@ final class RemoteIDParserTests: XCTestCase {
     func testRejectNonMultipleOf25() {
         let data = Data([0x10, 0x00, 0x00]) // 3 bytes
         XCTAssertThrowsError(try RemoteIDParser.parseFrames(from: data))
+    }
+
+    func testInvalidFrameLengthExpectedUsesNearestParsableLength() {
+        let data = Data([UInt8](repeating: 0, count: 151))
+        do {
+            _ = try RemoteIDParser.parseFrames(from: data)
+            XCTFail("Expected invalidFrameLength")
+        } catch let OpenDroneIDError.invalidFrameLength(expected, actual) {
+            XCTAssertEqual(actual, 151)
+            XCTAssertEqual(expected, 150)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 }
 
