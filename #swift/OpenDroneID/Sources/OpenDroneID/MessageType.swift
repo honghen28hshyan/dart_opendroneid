@@ -22,7 +22,7 @@ public enum MessageType: UInt8, Sendable {
     }
 }
 
-/// Remote ID 常见 header: 1 byte = [protocolVersion:4][messageType:4]
+/// Remote ID 常见 header: 1 byte = [messageType:4][protocolVersion:4]
 public struct RemoteIDHeader: Sendable, Equatable {
     public let protocolVersion: UInt8
     public let messageType: MessageType
@@ -30,8 +30,9 @@ public struct RemoteIDHeader: Sendable, Equatable {
 
     public init(byte: UInt8) throws {
         self.raw = byte
-        self.protocolVersion = (byte >> 4) & 0x0F
-        let typeNibble = byte & 0x0F
+        let typeNibble = (byte >> 4) & 0x0F
+        self.protocolVersion = byte & 0x0F
+
         guard let t = MessageType(rawValue: typeNibble) else {
             throw OpenDroneIDError.unknownMessageType(typeNibble)
         }
